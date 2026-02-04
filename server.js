@@ -42,14 +42,12 @@ app.prepare().then(() => {
         });
 
         socket.on("draw", (data) => {
-            console.log(`✏️ Draw event from ${socket.id} in room "${data.roomId}"`);
             const socketsInRoom = io.sockets.adapter.rooms.get(data.roomId);
             console.log(`   Broadcasting to ${(socketsInRoom?.size || 1) - 1} other clients in room`);
             socket.to(data.roomId).emit("draw", data);
         });
 
         socket.on("draw-end", (data) => {
-            console.log(`🎨 Draw End event from ${socket.id} in room "${data.roomId}"`);
             const socketsInRoom = io.sockets.adapter.rooms.get(data.roomId);
             console.log(`   Broadcasting to ${(socketsInRoom?.size || 1) - 1} other clients in room`);
             socket.to(data.roomId).emit("draw-end", data);

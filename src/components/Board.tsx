@@ -13,9 +13,10 @@ interface BoardProps {
   user: User;
   activeTool: Tool;
   color: string;
+  lineWidth: number;
 }
 
-export default function Board({ roomId, user, activeTool, color }: BoardProps) {
+export default function Board({ roomId, user, activeTool, color, lineWidth }: BoardProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const { socket, isConnected } = useSocket();
@@ -282,7 +283,7 @@ export default function Board({ roomId, user, activeTool, color }: BoardProps) {
                 // Live draw
                 ctx.beginPath();
                 ctx.strokeStyle = activeTool === 'eraser' ? '#ffffff' : color;
-                ctx.lineWidth = 5;
+                ctx.lineWidth = lineWidth;
                 ctx.lineCap = "round";
                 ctx.moveTo(lastPt.x, lastPt.y);
                 ctx.lineTo(pos.x, pos.y);
@@ -292,7 +293,7 @@ export default function Board({ roomId, user, activeTool, color }: BoardProps) {
                     roomId,
                     points: [lastPt, pos],
                     color,
-                    width: 5,
+                    width: lineWidth,
                     type: activeTool
                 };
                 console.log("📤 Emitting draw event:", drawData);
@@ -306,7 +307,7 @@ export default function Board({ roomId, user, activeTool, color }: BoardProps) {
               type: activeTool,
               points: [start, pos],
               color,
-              width: 5,
+              width: lineWidth,
               id: 'temp',
           };
           drawAction(ctx, tempAction);
@@ -325,7 +326,7 @@ export default function Board({ roomId, user, activeTool, color }: BoardProps) {
           type: activeTool,
           points: [...currentPathRef.current],
           color,
-          width: 5
+          width: lineWidth
       };
       
       actionsRef.current.push(action);

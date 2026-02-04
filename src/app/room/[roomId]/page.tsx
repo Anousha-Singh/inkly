@@ -8,6 +8,7 @@ import Toolbar from "@/components/Toolbar";
 import Header from "@/components/Header";
 import CursorOverlay from "@/components/CursorOverlay";
 import ConnectionStatus from "@/components/ConnectionStatus";
+import ProfileMenu from "@/components/ProfileMenu";
 import { Tool } from "@/types";
 
 export default function Room() {
@@ -17,6 +18,7 @@ export default function Room() {
   const router = useRouter();
   const [activeTool, setActiveTool] = useState<Tool>("pen");
   const [color, setColor] = useState("#000000");
+  const [lineWidth, setLineWidth] = useState(5);
   
   const onlineUsers = usePresence(roomId, user);
 
@@ -30,6 +32,7 @@ export default function Room() {
 
   return (
     <div className="flex flex-col h-screen w-full bg-slate-50 overflow-hidden relative">
+      <ProfileMenu user={user} />
       <Header roomId={roomId} user={user} onlineUsers={onlineUsers} />
       <div className="flex-1 relative w-full h-full">
          <CursorOverlay roomId={roomId} />
@@ -39,12 +42,15 @@ export default function Room() {
             user={user} 
             activeTool={activeTool} 
             color={color}
+            lineWidth={lineWidth}
          />
          <Toolbar 
             activeTool={activeTool} 
             onToolChange={setActiveTool} 
             color={color} 
             onColorChange={setColor}
+            lineWidth={lineWidth}
+            onLineWidthChange={setLineWidth}
          />
       </div>
     </div>
