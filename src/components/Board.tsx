@@ -14,9 +14,12 @@ interface BoardProps {
   activeTool: Tool;
   color: string;
   lineWidth: number;
+  opacity: number;
+  isDarkMode: boolean;
+  showGrid: boolean;
 }
 
-export default function Board({ roomId, user, activeTool, color, lineWidth }: BoardProps) {
+export default function Board({ roomId, user, activeTool, color, lineWidth, opacity, isDarkMode, showGrid }: BoardProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const { socket, isConnected } = useSocket();
@@ -24,11 +27,15 @@ export default function Board({ roomId, user, activeTool, color, lineWidth }: Bo
   const currentPathRef = useRef<Point[]>([]);
   const actionsRef = useRef<DrawAction[]>([]);
   
-  // Undo/Redo Stacks implies local history management, but doing it collaboratively is tricky.
-  // We will implement "Remove My Last Action" for Undo.
-  
   const drawAction = (ctx: CanvasRenderingContext2D, action: DrawAction) => {
-      ctx.strokeStyle = action.type === 'eraser' ? '#ffffff' : action.color;
+      if (action.type === 'eraser') {
+          ctx.globalCompositeOperation = 'destination-out';
+      } else {
+          ctx.globalCompositeOperation = 'source-over';
+      }
+      
+      ctx.globalAlpha = action.opacity ?? 1;
+      ctx.strokeStyle = action.color;
       ctx.lineWidth = action.width;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
@@ -47,6 +54,90 @@ export default function Board({ roomId, user, activeTool, color, lineWidth }: Bo
           const start = pts[0];
           const end = pts[pts.length - 1];
           ctx.strokeRect(start.x, start.y, end.x - start.x, end.y - start.y);
+      } else if (action.type === 'circle') {
+          const start = pts[0];
+          const end = pts[pts.length - 1];
+          const rx = Math.abs(end.x - start.x) / 2;
+          const ry = Math.abs(end.y - start.y) / 2;
+          const cx = Math.min(start.x, end.x) + rx;
+          const cy = Math.min(start.y, end.y) + ry;
+          ctx.beginPath();
+          ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+          ctx.stroke();
+      } else if (action.type === 'diamond') {
+          const start = pts[0];
+          const end = pts[pts.length - 1];
+          const cx = (start.x + end.x) / 2;
+          const cy = (start.y + end.y) / 2;
+          ctx.beginPath();
+          ctx.moveTo(cx, start.y); // top
+          ctx.lineTo(end.x, cy);   // right
+          ctx.lineTo(cx, end.y);   // bottom
+          ctx.lineTo(start.x, cy); // left
+          ctx.closePath();
+          ctx.stroke();
+      } else if (action.type === 'line') {
+          const start = pts[0];
+          const end = pts[pts.length - 1];
+          ctx.beginPath();
+          ctx.moveTo(start.x, start.y);
+          ctx.lineTo(end.x, end.y);
+          ctx.stroke();
+      } else if (action.type === 'triangle') {
+          const start = pts[0];
+          const end = pts[pts.length - 1];
+          ctx.beginPath();
+          ctx.moveTo((start.x + end.x) / 2, start.y);
+          ctx.lineTo(end.x, end.y);
+          ctx.lineTo(start.x, end.y);
+          ctx.closePath();
+          ctx.stroke();
+      } else if (action.type === 'star') {
+          const start = pts[0];
+          const end = pts[pts.length - 1];
+          const cx = (start.x + end.x) / 2;
+          const cy = (start.y + end.y) / 2;
+          const outerRadius = Math.min(Math.abs(end.x - start.x), Math.abs(end.y - start.y)) / 2;
+          const innerRadius = outerRadius / 2.5;
+          const spikes = 5;
+          let rot = Math.PI / 2 * 3;
+          let x = cx;
+          let y = cy;
+          let step = Math.PI / spikes;
+
+          ctx.beginPath();
+          ctx.moveTo(cx, cy - outerRadius);
+          for (let i = 0; i < spikes; i++) {
+              x = cx + Math.cos(rot) * outerRadius;
+              y = cy + Math.sin(rot) * outerRadius;
+              ctx.lineTo(x, y);
+              rot += step;
+
+              x = cx + Math.cos(rot) * innerRadius;
+              y = cy + Math.sin(rot) * innerRadius;
+              ctx.lineTo(x, y);
+              rot += step;
+          }
+          ctx.lineTo(cx, cy - outerRadius);
+          ctx.closePath();
+          ctx.stroke();
+      } else if (action.type === 'hexagon') {
+          const start = pts[0];
+          const end = pts[pts.length - 1];
+          const cx = (start.x + end.x) / 2;
+          const cy = (start.y + end.y) / 2;
+          const rx = Math.abs(end.x - start.x) / 2;
+          const ry = Math.abs(end.y - start.y) / 2;
+          ctx.beginPath();
+          for (let i = 0; i < 6; i++) {
+              const angle = (Math.PI / 3) * i;
+              const x = cx + rx * Math.cos(angle);
+              const y = cy + ry * Math.sin(angle);
+              if (i === 0) ctx.moveTo(x, y);
+              else ctx.lineTo(x, y);
+          }
+          ctx.closePath();
+          ctx.stroke();
       } else if (action.type === 'arrow') {
            const start = pts[0];
            const end = pts[pts.length - 1];
@@ -70,6 +161,8 @@ export default function Board({ roomId, user, activeTool, color, lineWidth }: Bo
            ctx.fillText(action.text || "", pts[0].x, pts[0].y);
       }
       ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
   };
 
   const redraw = useCallback(() => {
@@ -78,12 +171,10 @@ export default function Board({ roomId, user, activeTool, color, lineWidth }: Bo
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
       
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = "#ffffff"; // White background
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      actionsRef.current.forEach(action => drawAction(ctx, action));
-  }, []);
+    actionsRef.current.forEach(action => drawAction(ctx, action));
+}, [drawAction]);
 
   // Save to Firestore
   const saveBoard = useCallback(async () => {
@@ -121,13 +212,21 @@ export default function Board({ roomId, user, activeTool, color, lineWidth }: Bo
             if (!ctx) return;
             const pts = data.points;
             if (pts && pts.length >= 2) {
-                ctx.strokeStyle = data.type === 'eraser' ? '#ffffff' : data.color;
+                if (data.type === 'eraser') {
+                    ctx.globalCompositeOperation = 'destination-out';
+                } else {
+                    ctx.globalCompositeOperation = 'source-over';
+                }
+                ctx.globalAlpha = data.opacity ?? 1;
+                ctx.strokeStyle = data.color;
                 ctx.lineWidth = data.width;
                 ctx.lineCap = "round";
                 ctx.beginPath();
                 ctx.moveTo(pts[0].x, pts[0].y);
                 ctx.lineTo(pts[1].x, pts[1].y);
                 ctx.stroke();
+                ctx.globalAlpha = 1;
+                ctx.globalCompositeOperation = 'source-over';
             }
         }
     });
@@ -254,8 +353,9 @@ export default function Board({ roomId, user, activeTool, color, lineWidth }: Bo
                    type: 'text',
                    points: [pos],
                    color,
-                   width: 4, // Multiplier for font size
-                   text
+                    width: 4, // Multiplier for font size
+                    opacity: 1, // Text is always opaque for now
+                    text
                };
                actionsRef.current.push(action);
                redraw();
@@ -282,18 +382,27 @@ export default function Board({ roomId, user, activeTool, color, lineWidth }: Bo
             if (lastPt) {
                 // Live draw
                 ctx.beginPath();
-                ctx.strokeStyle = activeTool === 'eraser' ? '#ffffff' : color;
+                if (activeTool === 'eraser') {
+                    ctx.globalCompositeOperation = 'destination-out';
+                } else {
+                    ctx.globalCompositeOperation = 'source-over';
+                }
+                ctx.globalAlpha = activeTool === 'eraser' ? 1 : opacity;
+                ctx.strokeStyle = color;
                 ctx.lineWidth = lineWidth;
                 ctx.lineCap = "round";
                 ctx.moveTo(lastPt.x, lastPt.y);
                 ctx.lineTo(pos.x, pos.y);
                 ctx.stroke();
+                ctx.globalAlpha = 1;
+                ctx.globalCompositeOperation = 'source-over';
 
                 const drawData = {
                     roomId,
                     points: [lastPt, pos],
                     color,
                     width: lineWidth,
+                    opacity: activeTool === 'eraser' ? 1 : opacity,
                     type: activeTool
                 };
                 console.log("📤 Emitting draw event:", drawData);
@@ -308,13 +417,11 @@ export default function Board({ roomId, user, activeTool, color, lineWidth }: Bo
               points: [start, pos],
               color,
               width: lineWidth,
+              opacity, // Shapes always use the current opacity
               id: 'temp',
           };
           drawAction(ctx, tempAction);
       }
-      
-      // Cursor
-      socket.emit("cursor-move", { roomId, x: pos.x, y: pos.y, username: user.displayName, userId: user.uid });
   };
 
   const stopDrawing = () => {
@@ -326,7 +433,8 @@ export default function Board({ roomId, user, activeTool, color, lineWidth }: Bo
           type: activeTool,
           points: [...currentPathRef.current],
           color,
-          width: lineWidth
+          width: lineWidth,
+          opacity: activeTool === 'eraser' ? 1 : opacity,
       };
       
       actionsRef.current.push(action);
@@ -337,18 +445,81 @@ export default function Board({ roomId, user, activeTool, color, lineWidth }: Bo
       redraw();
   };
 
+  const cursorRef = useRef<HTMLDivElement>(null);
+  const lastEmitRef = useRef<number>(0);
+
+  const updateCursor = (e: React.MouseEvent | React.TouchEvent) => {
+    const pos = getPos(e);
+    if (cursorRef.current) {
+        cursorRef.current.style.left = `${pos.x}px`;
+        cursorRef.current.style.top = `${pos.y}px`;
+    }
+    
+    // Throttle cursor-move event
+    const now = Date.now();
+    if (now - lastEmitRef.current > 50) { // 20fps
+        socket?.emit("cursor-move", { roomId, x: pos.x, y: pos.y, username: user.displayName, userId: user.uid });
+        lastEmitRef.current = now;
+    }
+  };
+
   return (
-    <div ref={containerRef} className="w-full h-full cursor-crosshair bg-white">
+    <div 
+        ref={containerRef} 
+        className={`w-full h-full cursor-none transition-colors duration-300 relative overflow-hidden ${isDarkMode ? 'bg-[#0f172a]' : 'bg-white'}`}
+        style={showGrid ? {
+            backgroundImage: `
+              linear-gradient(to right, ${isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'} 1px, transparent 1px),
+              linear-gradient(to bottom, ${isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'} 1px, transparent 1px)
+            `,
+            backgroundSize: '40px 40px'
+        } : {}}
+        onMouseMove={(e) => {
+            updateCursor(e);
+            draw(e);
+        }}
+        onMouseEnter={() => {
+            if (cursorRef.current) cursorRef.current.style.display = 'flex';
+        }}
+        onMouseLeave={() => {
+            if (cursorRef.current) cursorRef.current.style.display = 'none';
+            stopDrawing();
+        }}
+        onTouchMove={(e) => {
+            updateCursor(e);
+            draw(e);
+        }}
+        onTouchStart={startDrawing}
+        onTouchEnd={stopDrawing}
+        onMouseDown={startDrawing}
+        onMouseUp={stopDrawing}
+    >
+       {/* Brush Cursor Preview - Uses direct DOM update for performance */}
+       {activeTool !== 'text' && (
+           <div 
+              ref={cursorRef}
+              className="pointer-events-none absolute z-[60] border border-gray-400 rounded-full items-center justify-center transition-[width,height] duration-75 hidden"
+              style={{
+                  width: activeTool === 'pen' || activeTool === 'eraser' ? lineWidth : 12,
+                  height: activeTool === 'pen' || activeTool === 'eraser' ? lineWidth : 12,
+                  transform: 'translate(-50%, -50%)',
+                  backgroundColor: activeTool === 'eraser' 
+                    ? (isDarkMode ? '#0f172a' : '#ffffff') 
+                    : (activeTool === 'pen' ? color : 'transparent'),
+                  opacity: activeTool === 'pen' ? opacity : 1,
+                  border: activeTool === 'pen' || activeTool === 'eraser' ? '1px solid #9ca3af' : `2px solid ${isDarkMode ? '#ffffff' : '#000000'}`,
+                  boxShadow: isDarkMode ? '0 0 0 1px rgba(255,255,255,0.2)' : '0 0 0 1px rgba(0,0,0,0.1)'
+              }}
+           >
+               {(activeTool !== 'pen' && activeTool !== 'eraser') && (
+                   <div className={`w-1 h-1 rounded-full ${isDarkMode ? 'bg-white' : 'bg-black'}`} />
+               )}
+           </div>
+       )}
+
        <canvas 
           ref={canvasRef}
-          onMouseDown={startDrawing}
-          onMouseMove={draw}
-          onMouseUp={stopDrawing}
-          onMouseLeave={stopDrawing}
-          onTouchStart={startDrawing}
-          onTouchMove={draw}
-          onTouchEnd={stopDrawing}
-          className="touch-none block"
+          className="touch-none block w-full h-full"
        />
     </div>
   );

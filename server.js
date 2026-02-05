@@ -4,8 +4,8 @@ const next = require('next');
 const { Server } = require('socket.io');
 
 const dev = process.env.NODE_ENV !== 'production';
-const hostname = 'localhost';
-const port = 3000;
+const hostname = process.env.HOSTNAME || '0.0.0.0';
+const port = parseInt(process.env.PORT || '3000', 10);
 
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
@@ -43,13 +43,11 @@ app.prepare().then(() => {
 
         socket.on("draw", (data) => {
             const socketsInRoom = io.sockets.adapter.rooms.get(data.roomId);
-            console.log(`   Broadcasting to ${(socketsInRoom?.size || 1) - 1} other clients in room`);
             socket.to(data.roomId).emit("draw", data);
         });
 
         socket.on("draw-end", (data) => {
             const socketsInRoom = io.sockets.adapter.rooms.get(data.roomId);
-            console.log(`   Broadcasting to ${(socketsInRoom?.size || 1) - 1} other clients in room`);
             socket.to(data.roomId).emit("draw-end", data);
         });
 

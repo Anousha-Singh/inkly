@@ -1,15 +1,17 @@
 "use client";
 import { User } from "firebase/auth";
-import { Download, Share2, Check } from "lucide-react";
+import { Download, Share2, Check, Sun, Moon } from "lucide-react";
 import { useState } from "react";
 
 interface HeaderProps {
   roomId: string;
   user: User;
   onlineUsers: any[];
+  isDarkMode: boolean;
+  setIsDarkMode: (val: boolean) => void;
 }
 
-export default function Header({ roomId, user, onlineUsers }: HeaderProps) {
+export default function Header({ roomId, user, onlineUsers, isDarkMode, setIsDarkMode }: HeaderProps) {
   const [copied, setCopied] = useState(false);
 
   const copyLink = () => {
@@ -63,6 +65,23 @@ export default function Header({ roomId, user, onlineUsers }: HeaderProps) {
 
         <div className="h-7 w-px bg-gradient-to-b from-transparent via-gray-300 to-transparent mx-1"></div>
 
+        {/* Theme Toggle */}
+        <button
+          onClick={() => setIsDarkMode(!isDarkMode)}
+          className={`group relative p-2.5 rounded-xl transition-all duration-200 hover:scale-105 ${
+            isDarkMode ? 'hover:bg-amber-500/10 text-amber-500' : 'hover:bg-indigo-50 text-gray-500 hover:text-indigo-600'
+          }`}
+          title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+        >
+          {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+          
+          {/* Tooltip */}
+          <span className="absolute -bottom-10 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[100]">
+            {isDarkMode ? "Light Mode" : "Dark Mode"}
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-[-4px] border-4 border-transparent border-b-gray-900"></div>
+          </span>
+        </button>
+
         {/* Share Button */}
         <button
           onClick={copyLink}
@@ -76,7 +95,7 @@ export default function Header({ roomId, user, onlineUsers }: HeaderProps) {
           )}
           
           {/* Tooltip */}
-          <span className="absolute -bottom-10 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap">
+          <span className="absolute -bottom-10 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[100]">
             {copied ? "Link copied!" : "Share board"}
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-[-4px] border-4 border-transparent border-b-gray-900"></div>
           </span>
@@ -91,7 +110,7 @@ export default function Header({ roomId, user, onlineUsers }: HeaderProps) {
           <Download size={20} />
           
           {/* Tooltip */}
-          <span className="absolute -bottom-10 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap">
+          <span className="absolute -bottom-10 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[100]">
             Export PNG
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-[-4px] border-4 border-transparent border-b-gray-900"></div>
           </span>

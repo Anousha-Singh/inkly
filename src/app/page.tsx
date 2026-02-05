@@ -76,29 +76,48 @@ export default function Home() {
   // Logged-in user dashboard
   if (user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      <div className="min-h-screen bg-white relative overflow-hidden">
+        {/* Background gradient */}
+        <div className="absolute inset-0 bg-blue-50/50 -z-10" />
+        
+        {/* Grid pattern */}
+        <div className="absolute inset-0 -z-10" style={{
+          backgroundImage: `
+            linear-gradient(to right, rgba(148, 163, 184, 0.2) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(148, 163, 184, 0.2) 1px, transparent 1px)
+          `,
+          backgroundSize: '40px 40px'
+        }} />
+        
+        {/* Decorative blobs */}
+        <div className="absolute top-20 left-10 w-96 h-96 bg-blue-200/30 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob" />
+        <div className="absolute top-40 right-10 w-96 h-96 bg-indigo-200/30 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob animation-delay-2000" />
+
         {/* Header */}
-        <header className="fixed top-0 left-0 right-0 z-50 bg-white/5 backdrop-blur-md border-b border-white/10">
+        <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500 rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-200">
                   <PenTool className="w-5 h-5 text-white" />
                 </div>
-                <span className="text-xl font-semibold text-white">Inkly</span>
+                <span className="text-xl font-semibold text-gray-900 tracking-tight">Inkly</span>
               </div>
               
               <div className="flex items-center gap-3">
                 {user.photoURL && (
-                  <img 
-                    src={user.photoURL} 
-                    alt="Avatar" 
-                    className="w-9 h-9 rounded-full border-2 border-indigo-400 shadow-lg" 
-                  />
+                  <div className="relative group">
+                    <img 
+                      src={user.photoURL} 
+                      alt="Avatar" 
+                      className="w-9 h-9 rounded-full border-2 border-white shadow-md" 
+                    />
+                    <div className="absolute inset-0 rounded-full ring-2 ring-blue-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
                 )}
                 <button 
                   onClick={logout} 
-                  className="px-4 py-2 text-sm font-medium text-rose-300 hover:text-rose-100 hover:bg-rose-500/20 rounded-lg transition"
+                  className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all duration-200"
                 >
                   Log Out
                 </button>
@@ -112,10 +131,14 @@ export default function Home() {
           <div className="w-full max-w-2xl">
             {/* Welcome Section */}
             <div className="text-center mb-12">
-              <h1 className="text-4xl sm:text-5xl font-bold text-white mb-3">
-                Welcome back, <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-pink-400">{user.displayName?.split(' ')[0]}</span>
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 border border-blue-100 rounded-full mb-4">
+                <span className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-pulse" />
+                <span className="text-xs font-semibold text-blue-700 uppercase tracking-wider">Dashboard</span>
+              </div>
+              <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-3 tracking-tight">
+                Welcome back, <span className="text-blue-600">{user.displayName?.split(' ')[0]}</span>
               </h1>
-              <p className="text-lg text-indigo-200">Ready to create something amazing?</p>
+              <p className="text-lg text-gray-600">Ready to bring your ideas to life?</p>
             </div>
 
             {/* Action Cards */}
@@ -123,67 +146,72 @@ export default function Home() {
               {/* Create New Board */}
               <button
                 onClick={createRoom}
-                className="group relative w-full py-8 text-left bg-white/10 hover:bg-white/15 backdrop-blur-md border border-white/10 hover:border-white/20 rounded-2xl transition-all duration-300 overflow-hidden hover:shadow-2xl hover:shadow-indigo-500/20"
+                className="group relative w-full py-10 text-left bg-white border border-gray-200 rounded-2xl transition-all duration-300 overflow-hidden hover:shadow-2xl hover:shadow-blue-200/50 hover:border-blue-400 shadow-sm"
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/10 to-purple-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-50 to-indigo-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 
                 <div className="relative z-10 px-8">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-7 h-7 text-white">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-6">
+                      <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-xl shadow-blue-200 group-hover:scale-110 transition-transform duration-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-8 h-8 text-white">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                         </svg>
                       </div>
                       <div>
-                        <h2 className="text-2xl font-bold text-white mb-1">Create New Board</h2>
-                        <p className="text-indigo-200 text-sm">Start with a blank canvas</p>
+                        <h2 className="text-2xl font-bold text-gray-900 mb-1">Create New Board</h2>
+                        <p className="text-gray-500">Start with a fresh, infinite canvas</p>
                       </div>
                     </div>
-                    <ArrowRight className="w-6 h-6 text-white opacity-50 group-hover:opacity-100 group-hover:translate-x-2 transition-all duration-300" />
+                    <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
+                        <ArrowRight className="w-6 h-6 text-gray-400 group-hover:text-white" />
+                    </div>
                   </div>
                 </div>
               </button>
 
               {/* Join Existing Board */}
-              <div className="bg-white/10 backdrop-blur-md border border-white/10 rounded-2xl p-8">
-                <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                  <Users className="w-6 h-6 text-indigo-400" />
+              <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm">
+                <h2 className="text-xl font-bold text-gray-900 mb-1 flex items-center gap-2">
+                  <div className="p-2 bg-blue-50 rounded-lg">
+                    <Users className="w-5 h-5 text-blue-600" />
+                  </div>
                   Join Existing Board
                 </h2>
-                <div className="flex gap-3">
+                <p className="text-gray-500 text-sm mb-6 ml-11">Enter a room code to collaborate with others in real-time</p>
+                <div className="flex flex-col sm:flex-row gap-3">
                   <input
                     type="text"
                     value={joinId}
                     onChange={(e) => setJoinId(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && joinRoom()}
-                    placeholder="Paste Room ID here..."
-                    className="flex-1 px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white placeholder-indigo-200/30 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition"
+                    placeholder="Enter Room ID (e.g. 123-456)"
+                    className="flex-1 px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                   />
                   <button
                     onClick={joinRoom}
                     disabled={!joinId.trim()}
-                    className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition border border-white/10 hover:border-white/20"
+                    className="px-10 py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-200 hover:shadow-xl hover:shadow-blue-300 hover:-translate-y-0.5"
                   >
-                    Join
+                    Join Room
                   </button>
                 </div>
               </div>
             </div>
 
             {/* Quick Stats */}
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-                <div className="text-2xl font-bold text-indigo-400">∞</div>
-                <div className="text-xs text-indigo-200 mt-1">Unlimited Boards</div>
+            <div className="grid grid-cols-3 gap-6 text-center">
+              <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                <div className="text-3xl font-bold text-blue-600 mb-1">∞</div>
+                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Unlimited Boards</div>
               </div>
-              <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-                <div className="text-2xl font-bold text-purple-400">Real-time</div>
-                <div className="text-xs text-purple-200 mt-1">Collaboration</div>
+              <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                <div className="text-3xl font-bold text-blue-600 mb-1">Sync</div>
+                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Real-time Collab</div>
               </div>
-              <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-                <div className="text-2xl font-bold text-pink-400">100%</div>
-                <div className="text-xs text-pink-200 mt-1">Free Forever</div>
+              <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                <div className="text-3xl font-bold text-blue-600 mb-1">100%</div>
+                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Free Forever</div>
               </div>
             </div>
           </div>
