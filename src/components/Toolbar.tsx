@@ -1,6 +1,6 @@
 "use client";
 import { Tool } from "@/types";
-import { Pen, Eraser, Square, Circle, Diamond, ArrowRight, Type, Palette, Grid3X3, Shapes, Triangle, Minus, Star, Hexagon } from "lucide-react";
+import { Pen, Eraser, Square, Circle, Diamond, ArrowRight, Type, Palette, Grid3X3, Shapes, Triangle, Minus, Star, Hexagon, Hand } from "lucide-react";
 import { useState } from "react";
 
 interface ToolbarProps {
@@ -39,6 +39,7 @@ export default function Toolbar({
     { id: "eraser", icon: Eraser, label: "Eraser" },
     { id: "shapes", icon: Shapes, label: "Shapes" },
     { id: "text", icon: Type, label: "Text" },
+    { id: "pan", icon: Hand, label: "Pan" },
   ];
 
   const shapeTools: { id: Tool; icon: any; label: string }[] = [

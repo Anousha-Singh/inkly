@@ -1,12 +1,13 @@
 "use client";
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useSocket } from "@/hooks/useSocket";
 import { Tool, Point, DrawAction } from "@/types";
 import { User } from "firebase/auth";
 import { v4 as uuidv4 } from "uuid";
-import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { Undo, Redo } from "lucide-react"; // Import if adding UI buttons, but keyboard is fine
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { db, rtdb } from "@/lib/firebase";
+import { ref, push, onChildAdded, set, onValue, off, remove, serverTimestamp } from "firebase/database";
+import { Undo, Redo } from "lucide-react"; 
+import React from "react";
 
 interface BoardProps {
   roomId: string;
@@ -17,13 +18,22 @@ interface BoardProps {
   opacity: number;
   isDarkMode: boolean;
   showGrid: boolean;
+  pan: { x: number; y: number };
+  setPan: React.Dispatch<React.SetStateAction<{ x: number; y: number }>>;
+  zoom: number;
+  setZoom: React.Dispatch<React.SetStateAction<number>>;
 }
 
-export default function Board({ roomId, user, activeTool, color, lineWidth, opacity, isDarkMode, showGrid }: BoardProps) {
+export default function Board({ 
+    roomId, user, activeTool, color, lineWidth, opacity, isDarkMode, showGrid,
+    pan, setPan, zoom, setZoom 
+}: BoardProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { socket, isConnected } = useSocket();
   const [isDrawing, setIsDrawing] = useState(false);
+  const isPanningRef = useRef(false);
+  const startPanRef = useRef({ x: 0, y: 0 });
+  
   const currentPathRef = useRef<Point[]>([]);
   const actionsRef = useRef<DrawAction[]>([]);
   
@@ -171,10 +181,13 @@ export default function Board({ roomId, user, activeTool, color, lineWidth, opac
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
       
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    ctx.scale(zoom, zoom);
+    ctx.translate(pan.x, pan.y);
 
     actionsRef.current.forEach(action => drawAction(ctx, action));
-}, [drawAction]);
+    ctx.restore();
+}, [drawAction, pan, zoom]);
 
   // Save to Firestore
   const saveBoard = useCallback(async () => {
@@ -188,30 +201,26 @@ export default function Board({ roomId, user, activeTool, color, lineWidth, opac
       }
   }, [roomId]);
 
-  // Socket & Sync
+  // Realtime Sync
   useEffect(() => {
-    if (!socket) return;
+    if (!roomId || !user) return;
 
-    const onConnect = () => {
-        console.log("🔌 Connected to socket server, joining room:", roomId);
-        socket.emit("join-room", roomId);
-        console.log("📤 Emitted join-room event for room:", roomId);
-    };
+    const segmentsRef = ref(rtdb, `rooms/${roomId}/segments`);
+    const finalActionsRef = ref(rtdb, `rooms/${roomId}/finalActions`);
+    const undoRef = ref(rtdb, `rooms/${roomId}/undo`);
+    const clearRef = ref(rtdb, `rooms/${roomId}/clear`);
 
-    if (socket.connected) {
-        console.log("✅ Socket already connected on mount");
-        onConnect();
-    }
-
-    socket.on("connect", onConnect);
-
-    socket.on("draw", (data: any) => {
-        console.log("📥 Received draw event:", data);
-        if (data.type === 'pen' || data.type === 'eraser') {
+    // Only listen to segments sent by OTHER users to avoid double drawing
+    const segmentsUnsubscribe = onChildAdded(segmentsRef, (snapshot) => {
+        const data = snapshot.val();
+        if (data && data.userId !== user.uid) {
             const ctx = canvasRef.current?.getContext("2d");
             if (!ctx) return;
             const pts = data.points;
             if (pts && pts.length >= 2) {
+                ctx.save();
+                ctx.scale(zoom, zoom);
+                ctx.translate(pan.x, pan.y);
                 if (data.type === 'eraser') {
                     ctx.globalCompositeOperation = 'destination-out';
                 } else {
@@ -226,35 +235,43 @@ export default function Board({ roomId, user, activeTool, color, lineWidth, opac
                 ctx.lineTo(pts[1].x, pts[1].y);
                 ctx.stroke();
                 ctx.globalAlpha = 1;
-                ctx.globalCompositeOperation = 'source-over';
+                ctx.restore();
             }
         }
     });
-    
-    socket.on("draw-end", (data: DrawAction) => {
-        console.log("📥 Received draw-end event:", data);
-        actionsRef.current.push(data);
-        redraw();
-    });
-    
-    socket.on("undo", (actionId: string) => {
-        actionsRef.current = actionsRef.current.filter(a => a.id !== actionId);
-        redraw();
+
+    const actionsUnsubscribe = onChildAdded(finalActionsRef, (snapshot) => {
+        const data = snapshot.val();
+        // Check if we already have this action (e.g. if we were the one who drew it)
+        if (data && !actionsRef.current.some(a => a.id === data.id)) {
+            actionsRef.current.push(data);
+            redraw();
+        }
     });
 
-    socket.on("clear", () => {
-        actionsRef.current = [];
-        redraw();
+    const undoUnsubscribe = onValue(undoRef, (snapshot) => {
+        const data = snapshot.val();
+        if (data && data.actionId) {
+            actionsRef.current = actionsRef.current.filter(a => a.id !== data.actionId);
+            redraw();
+        }
+    });
+
+    const clearUnsubscribe = onValue(clearRef, (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+            actionsRef.current = [];
+            redraw();
+        }
     });
 
     return () => {
-        socket.off("connect", onConnect);
-        socket.off("draw");
-        socket.off("draw-end");
-        socket.off("undo");
-        socket.off("clear");
+        off(segmentsRef);
+        off(finalActionsRef);
+        off(undoRef);
+        off(clearRef);
     };
-  }, [socket, roomId, redraw]);
+  }, [roomId, user, redraw]);
 
   // Initial Load
   useEffect(() => {
@@ -323,13 +340,13 @@ export default function Board({ roomId, user, activeTool, color, lineWidth, opac
                    // Optimistic update
                    actionsRef.current.pop();
                    redraw();
-                   socket.emit("undo", { roomId, actionId: lastAction.id });
+                   set(ref(rtdb, `rooms/${roomId}/undo`), { actionId: lastAction.id, timestamp: serverTimestamp() });
               }
           }
       };
       window.addEventListener("keydown", handleKeyDown);
       return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [roomId, socket, redraw]);
+  }, [roomId, redraw, pan, zoom]);
 
 
   const getPos = (e: React.MouseEvent | React.TouchEvent) => {
@@ -337,13 +354,30 @@ export default function Board({ roomId, user, activeTool, color, lineWidth, opac
       const rect = canvasRef.current.getBoundingClientRect();
       const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
       const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+      
+      // Transform screen coordinates to world coordinates
       return {
-          x: clientX - rect.left,
-          y: clientY - rect.top
+          x: (clientX - rect.left) / zoom - pan.x,
+          y: (clientY - rect.top) / zoom - pan.y
+      };
+  };
+
+  const getScreenPos = (point: Point) => {
+      return {
+          x: (point.x + pan.x) * zoom,
+          y: (point.y + pan.y) * zoom
       };
   };
 
   const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
+      if (activeTool === 'pan' || (e as React.MouseEvent).button === 1) {
+          isPanningRef.current = true;
+          const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+          const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+          startPanRef.current = { x: clientX - pan.x * zoom, y: clientY - pan.y * zoom };
+          return;
+      }
+
       if (activeTool === 'text') {
            const pos = getPos(e);
            const text = prompt("Enter text:");
@@ -359,7 +393,7 @@ export default function Board({ roomId, user, activeTool, color, lineWidth, opac
                };
                actionsRef.current.push(action);
                redraw();
-               socket.emit("draw-end", { roomId, ...action });
+               push(ref(rtdb, `rooms/${roomId}/finalActions`), action);
            }
            return;
       }
@@ -369,6 +403,17 @@ export default function Board({ roomId, user, activeTool, color, lineWidth, opac
   };
 
   const draw = (e: React.MouseEvent | React.TouchEvent) => {
+      const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+      const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+
+      if (isPanningRef.current) {
+          setPan({
+              x: (clientX - startPanRef.current.x) / zoom,
+              y: (clientY - startPanRef.current.y) / zoom
+          });
+          return;
+      }
+
       if (!isDrawing) return;
       const pos = getPos(e);
       const newPoints = [...currentPathRef.current, pos];
@@ -381,6 +426,9 @@ export default function Board({ roomId, user, activeTool, color, lineWidth, opac
             const lastPt = currentPathRef.current[currentPathRef.current.length - 2];
             if (lastPt) {
                 // Live draw
+                ctx.save();
+                ctx.scale(zoom, zoom);
+                ctx.translate(pan.x, pan.y);
                 ctx.beginPath();
                 if (activeTool === 'eraser') {
                     ctx.globalCompositeOperation = 'destination-out';
@@ -395,18 +443,17 @@ export default function Board({ roomId, user, activeTool, color, lineWidth, opac
                 ctx.lineTo(pos.x, pos.y);
                 ctx.stroke();
                 ctx.globalAlpha = 1;
-                ctx.globalCompositeOperation = 'source-over';
+                ctx.restore();
 
                 const drawData = {
-                    roomId,
+                    userId: user.uid,
                     points: [lastPt, pos],
                     color,
                     width: lineWidth,
                     opacity: activeTool === 'eraser' ? 1 : opacity,
                     type: activeTool
                 };
-                console.log("📤 Emitting draw event:", drawData);
-                socket.emit("draw", drawData);
+                push(ref(rtdb, `rooms/${roomId}/segments`), drawData);
             }
       } else {
           // Shape Preview
@@ -420,11 +467,16 @@ export default function Board({ roomId, user, activeTool, color, lineWidth, opac
               opacity, // Shapes always use the current opacity
               id: 'temp',
           };
+          ctx.save();
+          ctx.scale(zoom, zoom);
+          ctx.translate(pan.x, pan.y);
           drawAction(ctx, tempAction);
+          ctx.restore();
       }
   };
 
   const stopDrawing = () => {
+      isPanningRef.current = false;
       if (!isDrawing) return;
       setIsDrawing(false);
       
@@ -438,8 +490,7 @@ export default function Board({ roomId, user, activeTool, color, lineWidth, opac
       };
       
       actionsRef.current.push(action);
-      console.log("📤 Emitting draw-end event:", { roomId, ...action });
-      socket.emit("draw-end", { roomId, ...action });
+      push(ref(rtdb, `rooms/${roomId}/finalActions`), action);
       saveBoard(); 
       currentPathRef.current = [];
       redraw();
@@ -458,9 +509,47 @@ export default function Board({ roomId, user, activeTool, color, lineWidth, opac
     // Throttle cursor-move event
     const now = Date.now();
     if (now - lastEmitRef.current > 50) { // 20fps
-        socket?.emit("cursor-move", { roomId, x: pos.x, y: pos.y, username: user.displayName, userId: user.uid });
+        const userCursorRef = ref(rtdb, `rooms/${roomId}/cursors/${user.uid}`);
+        set(userCursorRef, { 
+            x: pos.x, 
+            y: pos.y, 
+            username: user.displayName, 
+            userId: user.uid,
+            lastUpdate: serverTimestamp()
+        });
         lastEmitRef.current = now;
     }
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+          e.preventDefault();
+          const delta = e.deltaY;
+          const zoomScale = 1 - delta * 0.001;
+          const newZoom = Math.min(Math.max(0.1, zoom * zoomScale), 5);
+          
+          // Zoom towards mouse position
+          const rect = canvasRef.current?.getBoundingClientRect();
+          if (rect) {
+              const mouseX = e.clientX - rect.left;
+              const mouseY = e.clientY - rect.top;
+              
+              const worldX = mouseX / zoom - pan.x;
+              const worldY = mouseY / zoom - pan.y;
+              
+              setPan({
+                  x: mouseX / newZoom - worldX,
+                  y: mouseY / newZoom - worldY
+              });
+              setZoom(newZoom);
+          }
+      } else {
+          // Normal scroll pans? Or zoom? Let's do pan for vertical scroll if not shift
+          setPan(prev => ({
+              x: prev.x - e.deltaX / zoom,
+              y: prev.y - e.deltaY / zoom
+          }));
+      }
   };
 
   return (
@@ -472,8 +561,10 @@ export default function Board({ roomId, user, activeTool, color, lineWidth, opac
               linear-gradient(to right, ${isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'} 1px, transparent 1px),
               linear-gradient(to bottom, ${isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'} 1px, transparent 1px)
             `,
-            backgroundSize: '40px 40px'
+            backgroundSize: `${40 * zoom}px ${40 * zoom}px`,
+            backgroundPosition: `${pan.x * zoom}px ${pan.y * zoom}px`
         } : {}}
+        onWheel={handleWheel}
         onMouseMove={(e) => {
             updateCursor(e);
             draw(e);
@@ -495,13 +586,13 @@ export default function Board({ roomId, user, activeTool, color, lineWidth, opac
         onMouseUp={stopDrawing}
     >
        {/* Brush Cursor Preview - Uses direct DOM update for performance */}
-       {activeTool !== 'text' && (
+       {activeTool !== 'text' && activeTool !== 'pan' && (
            <div 
               ref={cursorRef}
               className="pointer-events-none absolute z-[60] border border-gray-400 rounded-full items-center justify-center transition-[width,height] duration-75 hidden"
               style={{
-                  width: activeTool === 'pen' || activeTool === 'eraser' ? lineWidth : 12,
-                  height: activeTool === 'pen' || activeTool === 'eraser' ? lineWidth : 12,
+                  width: (activeTool === 'pen' || activeTool === 'eraser' ? lineWidth : 12) * zoom,
+                  height: (activeTool === 'pen' || activeTool === 'eraser' ? lineWidth : 12) * zoom,
                   transform: 'translate(-50%, -50%)',
                   backgroundColor: activeTool === 'eraser' 
                     ? (isDarkMode ? '#0f172a' : '#ffffff') 

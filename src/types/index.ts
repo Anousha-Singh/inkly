@@ -1,6 +1,6 @@
 export type Point = { x: number; y: number };
 
-export type Tool = 'pen' | 'eraser' | 'rect' | 'circle' | 'diamond' | 'line' | 'triangle' | 'star' | 'hexagon' | 'arrow' | 'text';
+export type Tool = 'pen' | 'eraser' | 'rect' | 'circle' | 'diamond' | 'line' | 'triangle' | 'star' | 'hexagon' | 'arrow' | 'text' | 'pan';
 
 export interface DrawAction {
     type: Tool;

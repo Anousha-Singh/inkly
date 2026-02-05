@@ -23,6 +23,8 @@ export default function Room() {
   const [opacity, setOpacity] = useState(1);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [showGrid, setShowGrid] = useState(true);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
   
   const onlineUsers = usePresence(roomId, user);
 
@@ -67,7 +69,7 @@ export default function Room() {
         setIsDarkMode={setIsDarkMode} 
       />
       <div className="flex-1 relative w-full h-full">
-         <CursorOverlay roomId={roomId} />
+         <CursorOverlay roomId={roomId} pan={pan} zoom={zoom} />
          <ConnectionStatus />
          <Board 
             roomId={roomId} 
@@ -78,6 +80,10 @@ export default function Room() {
             opacity={opacity}
             isDarkMode={isDarkMode}
             showGrid={showGrid}
+            pan={pan}
+            setPan={setPan}
+            zoom={zoom}
+            setZoom={setZoom}
          />
          <Toolbar 
             activeTool={activeTool} 

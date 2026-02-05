@@ -1,9 +1,18 @@
-"use client";
-import { useSocket } from "@/hooks/useSocket";
+import { useEffect, useState } from "react";
+import { rtdb } from "@/lib/firebase";
+import { ref, onValue } from "firebase/database";
 import { Wifi, WifiOff } from "lucide-react";
 
 export default function ConnectionStatus() {
-  const { isConnected } = useSocket();
+  const [isConnected, setIsConnected] = useState(true);
+
+  useEffect(() => {
+    const connectedRef = ref(rtdb, ".info/connected");
+    const unsubscribe = onValue(connectedRef, (snap) => {
+        setIsConnected(snap.val() === true);
+    });
+    return () => unsubscribe();
+  }, []);
 
   return (
     <div className={`fixed bottom-8 left-6 z-40 px-4 py-2.5 rounded-2xl text-xs font-medium backdrop-blur-xl border transition-all duration-300 flex items-center gap-2 shadow-lg ${
