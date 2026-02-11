@@ -1,36 +1,67 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Inkly 🎨
 
-## Getting Started
+**Inkly** is a high-performance, real-time collaborative whiteboard designed for creative teams, educators, and individuals. Built with a focus on speed and seamless interaction, it allows users to brainstorm, design, and visualize ideas together in a shared digital space.
 
-First, run the development server:
+## ✨ Features
 
+- **Real-time Collaboration**: Sync drawing actions across all participants instantly using Firebase.
+- **Rich Toolset**:
+  - **Drawing**: Smooth pen and eraser tools.
+  - **Shapes**: Rectangle, Circle, Diamond, Star, Hexagon, Triangle, and Arrows.
+  - **Text**: Add labels and notes directly to the board.
+- **Infinite Canvas**: Pan and zoom freely to create without boundaries.
+- **Live Presence**: Track collaborators with real-time cursor visibility and active member lists.
+- **Smart Controls**:
+  - Customizable color palettes, line widths, and opacity.
+  - Light and Dark mode support.
+  - Optional grid view for precision.
+- **Persistent Workspace**:
+  - **Autosave**: Your work is automatically synced to Firestore.
+  - **Undo/Redo**: Quick corrections via keyboard shortcuts (Ctrl+Z).
+- **Export**: Save your masterwork as a high-quality PNG image.
+- **Live Chat**: Integrated real-time messaging for seamless team coordination.
+
+## 🛠️ Tech Stack
+
+- **Framework**: [Next.js 15](https://nextjs.org/) (App Router)
+- **Styling**: [Tailwind CSS 4](https://tailwindcss.com/)
+- **Backend/Real-time**: [Firebase](https://firebase.google.com/) (Firestore & Realtime Database)
+- **Icons**: [Lucide React](https://lucide.dev/)
+- **Utility**: [UUID](https://github.com/uuidjs/uuid)
+
+## 🚀 Getting Started
+
+### 1. Prerequisites
+- Node.js (Latest LTS version recommended)
+- A Firebase project (Free tier works great)
+
+### 2. Installation
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/Anousha-Singh/inkly.git
+cd inkly
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 3. Environment Setup
+Create a `.env.local` file in the root directory and add your Firebase credentials:
+```env
+NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_DATABASE_URL=https://your_project.firebaseio.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_id
+NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 4. Run Development Server
+```bash
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) to start creating!
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 📜 License
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+Created with ❤️ by Anousha Singh
