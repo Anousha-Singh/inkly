@@ -13,16 +13,7 @@ interface Cursor {
   lastUpdate?: number;
 }
 
-interface Cursor {
-  x: number;
-  y: number;
-  username: string;
-  userId: string;
-  color: string;
-  lastUpdate?: number;
-}
-
-export default function CursorOverlay({ roomId, pan, zoom }: { roomId: string, pan: { x: number, y: number }, zoom: number }) {
+export default function CursorOverlay({ roomId, pan, zoom, currentUserId }: { roomId: string, pan: { x: number, y: number }, zoom: number, currentUserId: string }) {
   const [cursors, setCursors] = useState<Record<string, Cursor>>({});
 
   useEffect(() => {
@@ -63,7 +54,9 @@ export default function CursorOverlay({ roomId, pan, zoom }: { roomId: string, p
 
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden z-20">
-       {Object.values(cursors).map((cursor) => (
+       {Object.values(cursors)
+         .filter((cursor) => cursor.userId !== currentUserId)
+         .map((cursor) => (
           <div 
              key={cursor.userId} 
              className="absolute top-0 left-0 transition-transform duration-100 ease-linear"

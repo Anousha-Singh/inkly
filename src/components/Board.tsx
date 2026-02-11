@@ -37,6 +37,9 @@ export default function Board({
   const currentPathRef = useRef<Point[]>([]);
   const actionsRef = useRef<DrawAction[]>([]);
   
+  // Track local in-progress stroke metadata to preserve during redraws
+  const localStrokeRef = useRef<{ tool: Tool; color: string; width: number; opacity: number } | null>(null);
+  
   const drawAction = (ctx: CanvasRenderingContext2D, action: DrawAction) => {
       if (action.type === 'eraser') {
           ctx.globalCompositeOperation = 'destination-out';
@@ -181,6 +184,9 @@ export default function Board({
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
       
+    // Clear the entire canvas before redrawing
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
     ctx.save();
     ctx.scale(zoom, zoom);
     ctx.translate(pan.x, pan.y);
@@ -201,6 +207,71 @@ export default function Board({
       }
   }, [roomId]);
 
+  // Track in-progress strokes from remote users for live preview
+  const remoteStrokesRef = useRef<Record<string, { points: Point[]; color: string; width: number; opacity: number; type: string }>>({});
+
+  // Redraw including remote in-progress strokes AND local in-progress stroke
+  const redrawWithRemoteStrokes = useCallback(() => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.save();
+      ctx.scale(zoom, zoom);
+      ctx.translate(pan.x, pan.y);
+      actionsRef.current.forEach(action => drawAction(ctx, action));
+      
+      // Draw in-progress remote strokes
+      Object.values(remoteStrokesRef.current).forEach(stroke => {
+          if (stroke.points.length < 2) return;
+          if (stroke.type === 'eraser') {
+              ctx.globalCompositeOperation = 'destination-out';
+          } else {
+              ctx.globalCompositeOperation = 'source-over';
+          }
+          ctx.globalAlpha = stroke.opacity ?? 1;
+          ctx.strokeStyle = stroke.color;
+          ctx.lineWidth = stroke.width;
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+          ctx.beginPath();
+          ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+          for (let i = 1; i < stroke.points.length; i++) {
+              ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+          }
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+          ctx.globalCompositeOperation = 'source-over';
+      });
+      
+      // Draw local in-progress stroke to prevent jitter
+      if (localStrokeRef.current && currentPathRef.current.length >= 2) {
+          const { tool, color, width, opacity } = localStrokeRef.current;
+          if (tool === 'eraser') {
+              ctx.globalCompositeOperation = 'destination-out';
+          } else {
+              ctx.globalCompositeOperation = 'source-over';
+          }
+          ctx.globalAlpha = tool === 'eraser' ? 1 : opacity;
+          ctx.strokeStyle = color;
+          ctx.lineWidth = width;
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+          ctx.beginPath();
+          ctx.moveTo(currentPathRef.current[0].x, currentPathRef.current[0].y);
+          for (let i = 1; i < currentPathRef.current.length; i++) {
+              ctx.lineTo(currentPathRef.current[i].x, currentPathRef.current[i].y);
+          }
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+          ctx.globalCompositeOperation = 'source-over';
+      }
+      
+      ctx.restore();
+  }, [drawAction, pan, zoom]);
+
   // Realtime Sync
   useEffect(() => {
     if (!roomId || !user) return;
@@ -210,32 +281,25 @@ export default function Board({
     const undoRef = ref(rtdb, `rooms/${roomId}/undo`);
     const clearRef = ref(rtdb, `rooms/${roomId}/clear`);
 
-    // Only listen to segments sent by OTHER users to avoid double drawing
+    // Accumulate remote segments into in-progress strokes and redraw
     const segmentsUnsubscribe = onChildAdded(segmentsRef, (snapshot) => {
         const data = snapshot.val();
         if (data && data.userId !== user.uid) {
-            const ctx = canvasRef.current?.getContext("2d");
-            if (!ctx) return;
             const pts = data.points;
             if (pts && pts.length >= 2) {
-                ctx.save();
-                ctx.scale(zoom, zoom);
-                ctx.translate(pan.x, pan.y);
-                if (data.type === 'eraser') {
-                    ctx.globalCompositeOperation = 'destination-out';
+                const key = data.userId;
+                if (!remoteStrokesRef.current[key]) {
+                    remoteStrokesRef.current[key] = {
+                        points: [pts[0], pts[1]],
+                        color: data.color,
+                        width: data.width,
+                        opacity: data.opacity ?? 1,
+                        type: data.type
+                    };
                 } else {
-                    ctx.globalCompositeOperation = 'source-over';
+                    remoteStrokesRef.current[key].points.push(pts[1]);
                 }
-                ctx.globalAlpha = data.opacity ?? 1;
-                ctx.strokeStyle = data.color;
-                ctx.lineWidth = data.width;
-                ctx.lineCap = "round";
-                ctx.beginPath();
-                ctx.moveTo(pts[0].x, pts[0].y);
-                ctx.lineTo(pts[1].x, pts[1].y);
-                ctx.stroke();
-                ctx.globalAlpha = 1;
-                ctx.restore();
+                redrawWithRemoteStrokes();
             }
         }
     });
@@ -245,15 +309,19 @@ export default function Board({
         // Check if we already have this action (e.g. if we were the one who drew it)
         if (data && !actionsRef.current.some(a => a.id === data.id)) {
             actionsRef.current.push(data);
-            redraw();
         }
+        // Clear the in-progress remote stroke for this user since the final action is now committed
+        if (data && data.userId) {
+            delete remoteStrokesRef.current[data.userId];
+        }
+        redrawWithRemoteStrokes();
     });
 
     const undoUnsubscribe = onValue(undoRef, (snapshot) => {
         const data = snapshot.val();
         if (data && data.actionId) {
             actionsRef.current = actionsRef.current.filter(a => a.id !== data.actionId);
-            redraw();
+            redrawWithRemoteStrokes();
         }
     });
 
@@ -261,7 +329,8 @@ export default function Board({
         const data = snapshot.val();
         if (data) {
             actionsRef.current = [];
-            redraw();
+            remoteStrokesRef.current = {};
+            redrawWithRemoteStrokes();
         }
     });
 
@@ -271,7 +340,7 @@ export default function Board({
         off(undoRef);
         off(clearRef);
     };
-  }, [roomId, user, redraw]);
+  }, [roomId, user, redrawWithRemoteStrokes]);
 
   // Initial Load
   useEffect(() => {
@@ -400,6 +469,11 @@ export default function Board({
       setIsDrawing(true);
       const pos = getPos(e);
       currentPathRef.current = [pos];
+      
+      // Track local stroke metadata for pen/eraser to preserve during redraws
+      if (activeTool === 'pen' || activeTool === 'eraser') {
+          localStrokeRef.current = { tool: activeTool, color, width: lineWidth, opacity };
+      }
   };
 
   const draw = (e: React.MouseEvent | React.TouchEvent) => {
@@ -422,10 +496,11 @@ export default function Board({
       const ctx = canvasRef.current?.getContext("2d");
       if (!ctx) return;
       
+      
       if (activeTool === 'pen' || activeTool === 'eraser') {
             const lastPt = currentPathRef.current[currentPathRef.current.length - 2];
             if (lastPt) {
-                // Live draw
+                // Draw the new segment directly on canvas for immediate feedback
                 ctx.save();
                 ctx.scale(zoom, zoom);
                 ctx.translate(pan.x, pan.y);
@@ -443,6 +518,7 @@ export default function Board({
                 ctx.lineTo(pos.x, pos.y);
                 ctx.stroke();
                 ctx.globalAlpha = 1;
+                ctx.globalCompositeOperation = 'source-over';
                 ctx.restore();
 
                 const drawData = {
@@ -480,6 +556,9 @@ export default function Board({
       if (!isDrawing) return;
       setIsDrawing(false);
       
+      // Clear local stroke metadata
+      localStrokeRef.current = null;
+      
       const action: DrawAction = {
           id: uuidv4(),
           type: activeTool,
@@ -490,7 +569,8 @@ export default function Board({
       };
       
       actionsRef.current.push(action);
-      push(ref(rtdb, `rooms/${roomId}/finalActions`), action);
+      // Include userId in the final action pushed to Firebase so remote clients can clean up in-progress strokes
+      push(ref(rtdb, `rooms/${roomId}/finalActions`), { ...action, userId: user.uid });
       saveBoard(); 
       currentPathRef.current = [];
       redraw();
@@ -522,8 +602,10 @@ export default function Board({
   };
 
   const handleWheel = (e: React.WheelEvent) => {
+      // Always prevent default to stop browser zoom
+      e.preventDefault();
+      
       if (e.ctrlKey || e.metaKey) {
-          e.preventDefault();
           const delta = e.deltaY;
           const zoomScale = 1 - delta * 0.001;
           const newZoom = Math.min(Math.max(0.1, zoom * zoomScale), 5);
@@ -544,7 +626,7 @@ export default function Board({
               setZoom(newZoom);
           }
       } else {
-          // Normal scroll pans? Or zoom? Let's do pan for vertical scroll if not shift
+          // Normal scroll pans the canvas
           setPan(prev => ({
               x: prev.x - e.deltaX / zoom,
               y: prev.y - e.deltaY / zoom

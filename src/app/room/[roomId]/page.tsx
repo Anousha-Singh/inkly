@@ -69,7 +69,7 @@ export default function Room() {
         setIsDarkMode={setIsDarkMode} 
       />
       <div className="flex-1 relative w-full h-full">
-         <CursorOverlay roomId={roomId} pan={pan} zoom={zoom} />
+         <CursorOverlay roomId={roomId} pan={pan} zoom={zoom} currentUserId={user.uid} />
          <ConnectionStatus />
          <Board 
             roomId={roomId} 

@@ -37,12 +37,12 @@ export default function ProfileMenu({ user }: ProfileMenuProps) {
       {/* Hamburger Menu Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed top-6 left-6 z-50 group p-3 bg-white/90 backdrop-blur-xl shadow-lg border border-gray-200/50 rounded-2xl hover:bg-white transition-all duration-300 hover:shadow-xl hover:scale-105"
+        className="fixed top-4 left-4 z-50 group p-2 bg-white/90 backdrop-blur-xl shadow-lg border border-gray-200/50 rounded-xl hover:bg-white transition-all duration-300 hover:shadow-xl hover:scale-105"
       >
         {isOpen ? (
-          <X size={24} className="text-gray-700 transition-transform duration-300" />
+          <X size={18} className="text-gray-700 transition-transform duration-300" />
         ) : (
-          <Menu size={24} className="text-gray-700 transition-transform duration-300" />
+          <Menu size={18} className="text-gray-700 transition-transform duration-300" />
         )}
       </button>
 
