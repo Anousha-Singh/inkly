@@ -9,6 +9,7 @@ import Header from "@/components/Header";
 import CursorOverlay from "@/components/CursorOverlay";
 import ConnectionStatus from "@/components/ConnectionStatus";
 import ProfileMenu from "@/components/ProfileMenu";
+import RoomChat from "@/components/RoomChat";
 import { Tool } from "@/types";
 import { PenTool } from "lucide-react";
 
@@ -98,6 +99,7 @@ export default function Room() {
             showGrid={showGrid}
             onShowGridChange={setShowGrid}
          />
+         <RoomChat roomId={roomId} user={user} isDarkMode={isDarkMode} />
       </div>
     </div>
   );
