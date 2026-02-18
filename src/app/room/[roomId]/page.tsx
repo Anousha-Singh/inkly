@@ -10,6 +10,9 @@ import CursorOverlay from "@/components/CursorOverlay";
 import ConnectionStatus from "@/components/ConnectionStatus";
 import ProfileMenu from "@/components/ProfileMenu";
 import RoomChat from "@/components/RoomChat";
+import KeyboardShortcuts from "@/components/KeyboardShortcuts";
+import ZoomControls from "@/components/ZoomControls";
+import ReactionEmojis from "@/components/ReactionEmojis";
 import { Tool } from "@/types";
 import { PenTool } from "lucide-react";
 
@@ -28,6 +31,22 @@ export default function Room() {
   const [zoom, setZoom] = useState(1);
   
   const onlineUsers = usePresence(roomId, user);
+
+  // Tool keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const map: Record<string, Tool> = {
+        p: "pen", e: "eraser", t: "text", h: "pan",
+        r: "rect", c: "circle", l: "line", a: "arrow",
+      };
+      if (map[e.key.toLowerCase()]) setActiveTool(map[e.key.toLowerCase()]);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -71,7 +90,6 @@ export default function Room() {
       />
       <div className="flex-1 relative w-full h-full">
          <CursorOverlay roomId={roomId} pan={pan} zoom={zoom} currentUserId={user.uid} />
-         <ConnectionStatus />
          <Board 
             roomId={roomId} 
             user={user} 
@@ -100,6 +118,18 @@ export default function Room() {
             onShowGridChange={setShowGrid}
          />
          <RoomChat roomId={roomId} user={user} isDarkMode={isDarkMode} />
+          <div className={`fixed bottom-6 left-6 z-50 flex items-center gap-2 px-3 py-2 rounded-2xl border shadow-2xl backdrop-blur-xl transition-all duration-300 ${
+            isDarkMode 
+              ? "bg-slate-900/90 border-slate-800" 
+              : "bg-white/90 border-gray-100"
+          }`}>
+            <ConnectionStatus />
+            <div className={`w-px h-4 mx-1 ${isDarkMode ? "bg-slate-800" : "bg-gray-200"}`} />
+            <KeyboardShortcuts isDarkMode={isDarkMode} />
+            <div className={`w-px h-4 mx-1 ${isDarkMode ? "bg-slate-800" : "bg-gray-200"}`} />
+            <ZoomControls zoom={zoom} setZoom={setZoom} setPan={setPan} isDarkMode={isDarkMode} />
+          </div>
+         <ReactionEmojis roomId={roomId} user={user} isDarkMode={isDarkMode} />
       </div>
     </div>
   );

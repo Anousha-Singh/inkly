@@ -147,7 +147,7 @@ export default function RoomChat({ roomId, user, isDarkMode }: RoomChatProps) {
     <>
       {/* ── Floating Chat Panel ──────────────────────────────────────────── */}
       <div
-        className={`fixed bottom-20 right-5 z-50 flex flex-col rounded-2xl shadow-2xl border backdrop-blur-xl overflow-hidden transition-all duration-300 ease-in-out ${panelBg} ${
+        className={`fixed bottom-36 right-5 z-50 flex flex-col rounded-2xl shadow-2xl border backdrop-blur-xl overflow-hidden transition-all duration-300 ease-in-out ${panelBg} ${
           isOpen
             ? "opacity-100 scale-100 pointer-events-auto"
             : "opacity-0 scale-95 pointer-events-none"

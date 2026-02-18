@@ -23,18 +23,22 @@ export default function Header({ roomId, user, onlineUsers, isDarkMode, setIsDar
   return (
     <div className="fixed top-4 right-4 z-40 pointer-events-none flex items-center gap-2">
       {/* Board Info */}
-      <div className="bg-white/90 backdrop-blur-xl shadow-lg border border-gray-200/50 px-3 py-2 rounded-xl pointer-events-auto flex items-center gap-2 hover:shadow-xl transition-shadow duration-300">
+      <div className={`backdrop-blur-xl shadow-lg border px-3 py-2 rounded-xl pointer-events-auto flex items-center gap-2 hover:shadow-xl transition-all duration-300 ${
+        isDarkMode ? 'bg-slate-900/90 border-slate-700/50 shadow-slate-950/20' : 'bg-white/90 border-gray-200/50'
+      }`}>
         <div className="w-7 h-7 bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500 rounded-lg flex items-center justify-center text-white font-bold text-sm select-none shadow-md">
           I
         </div>
         <div>
-          <h1 className="font-bold text-gray-800 text-xs leading-tight">Inkly Board</h1>
-          <p className="text-[10px] text-gray-400 font-mono select-all">#{roomId.slice(0, 8)}</p>
+          <h1 className={`font-bold text-xs leading-tight ${isDarkMode ? 'text-slate-100' : 'text-gray-800'}`}>Inkly Board</h1>
+          <p className={`text-[10px] font-mono select-all ${isDarkMode ? 'text-slate-500' : 'text-gray-400'}`}>#{roomId}</p>
         </div>
       </div>
 
       {/* Actions & Presence */}
-      <div className="bg-white/90 backdrop-blur-xl shadow-lg border border-gray-200/50 px-2 py-2 rounded-xl pointer-events-auto flex items-center gap-1.5 hover:shadow-xl transition-shadow duration-300">
+      <div className={`backdrop-blur-xl shadow-lg border px-2 py-2 rounded-xl pointer-events-auto flex items-center gap-1.5 hover:shadow-xl transition-all duration-300 ${
+        isDarkMode ? 'bg-slate-900/90 border-slate-700/50 shadow-slate-950/20' : 'bg-white/90 border-gray-200/50'
+      }`}>
         {/* Presence Avatars */}
         <div className="flex -space-x-1.5 mr-1.5 pl-0.5 items-center">
           {onlineUsers.slice(0, 4).map((u, idx) => (
@@ -45,7 +49,9 @@ export default function Header({ roomId, user, onlineUsers, isDarkMode, setIsDar
             >
               <img
                 src={u.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.uid}`}
-                className="w-7 h-7 rounded-full border-2 border-white ring-1 ring-gray-100 bg-gray-100 transition-transform duration-200 group-hover:scale-110 group-hover:z-50"
+                className={`w-7 h-7 rounded-full border-2 ring-1 bg-gray-100 transition-transform duration-200 group-hover:scale-110 group-hover:z-50 ${
+                  isDarkMode ? 'border-slate-800 ring-slate-900' : 'border-white ring-gray-100'
+                }`}
                 title={u.displayName}
                 alt={u.displayName}
               />
@@ -54,16 +60,18 @@ export default function Header({ roomId, user, onlineUsers, isDarkMode, setIsDar
             </div>
           ))}
           {onlineUsers.length > 4 && (
-            <div className="w-7 h-7 rounded-full border-2 border-white bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center text-[10px] text-indigo-700 font-bold shadow-sm">
+            <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center text-[10px] font-bold shadow-sm ${
+              isDarkMode ? 'border-slate-800 bg-slate-800 text-indigo-400' : 'border-white bg-gradient-to-br from-indigo-100 to-purple-100 text-indigo-700'
+            }`}>
               +{onlineUsers.length - 4}
             </div>
           )}
           {onlineUsers.length === 0 && (
-            <div className="text-[10px] text-gray-400 px-1.5">No one online</div>
+            <div className={`text-[10px] px-1.5 ${isDarkMode ? 'text-slate-500' : 'text-gray-400'}`}>No one online</div>
           )}
         </div>
 
-        <div className="h-6 w-px bg-gradient-to-b from-transparent via-gray-300 to-transparent mx-0.5"></div>
+        <div className={`h-6 w-px bg-gradient-to-b from-transparent to-transparent mx-0.5 ${isDarkMode ? 'via-slate-700' : 'via-gray-300'}`}></div>
 
         {/* Theme Toggle */}
         <button

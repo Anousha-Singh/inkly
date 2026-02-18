@@ -581,9 +581,15 @@ export default function Board({
 
   const updateCursor = (e: React.MouseEvent | React.TouchEvent) => {
     const pos = getPos(e);
-    if (cursorRef.current) {
-        cursorRef.current.style.left = `${pos.x}px`;
-        cursorRef.current.style.top = `${pos.y}px`;
+
+    // Position the brush-preview cursor in SCREEN space (container-relative),
+    // not world space. This keeps it glued to the actual mouse pointer at any zoom.
+    if (cursorRef.current && containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+        const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+        cursorRef.current.style.left = `${clientX - rect.left}px`;
+        cursorRef.current.style.top  = `${clientY - rect.top}px`;
     }
     
     // Throttle cursor-move event
@@ -671,10 +677,12 @@ export default function Board({
        {activeTool !== 'text' && activeTool !== 'pan' && (
            <div 
               ref={cursorRef}
-              className="pointer-events-none absolute z-[60] border border-gray-400 rounded-full items-center justify-center transition-[width,height] duration-75 hidden"
+              className="pointer-events-none absolute z-[60] rounded-full items-center justify-center transition-[width,height] duration-75 hidden"
               style={{
-                  width: (activeTool === 'pen' || activeTool === 'eraser' ? lineWidth : 12) * zoom,
-                  height: (activeTool === 'pen' || activeTool === 'eraser' ? lineWidth : 12) * zoom,
+                  // pen/eraser: show the actual brush size in screen pixels (world width × zoom)
+                  // shape tools: fixed 16px crosshair regardless of zoom
+                  width:  (activeTool === 'pen' || activeTool === 'eraser') ? lineWidth * zoom : 16,
+                  height: (activeTool === 'pen' || activeTool === 'eraser') ? lineWidth * zoom : 16,
                   transform: 'translate(-50%, -50%)',
                   backgroundColor: activeTool === 'eraser' 
                     ? (isDarkMode ? '#0f172a' : '#ffffff') 

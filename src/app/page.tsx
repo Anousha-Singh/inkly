@@ -2,7 +2,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { v4 as uuidv4 } from "uuid";
+
 import { 
   PenTool, 
   ArrowRight, 
@@ -24,7 +24,7 @@ export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const createRoom = () => {
-    const roomId = uuidv4();
+    const roomId = Math.floor(100000 + Math.random() * 900000).toString();
     router.push(`/room/${roomId}`);
   };
 
@@ -178,14 +178,14 @@ export default function Home() {
                   </div>
                   Join Existing Board
                 </h2>
-                <p className="text-gray-500 text-sm mb-6 ml-11">Enter a room code to collaborate with others in real-time</p>
+                <p className="text-gray-500 text-sm mb-6 ml-11">Enter a 6-digit room code to collaborate with others in real-time</p>
                 <div className="flex flex-col sm:flex-row gap-3">
                   <input
                     type="text"
                     value={joinId}
                     onChange={(e) => setJoinId(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && joinRoom()}
-                    placeholder="Enter Room ID (e.g. 123-456)"
+                    placeholder="Enter 6-digit Code (e.g. 123456)"
                     className="flex-1 px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                   />
                   <button
